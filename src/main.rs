@@ -41,13 +41,10 @@ use killall::{Result, list_matches, UID, PsEntry, list_descendants, kill};
 ///
 #[derive(StructOpt)]
 enum Args {
-    /// This subcommand lets you kill all the processes that match a given
-    /// pattern. Note: Because killall is basically a shim around ps, you
-    /// might need to be a little bit careful with your 'name'. Indeed, the
-    /// filtering is done as if it were done by `ps -alx | grep $pattern`.
+    /// This subcommand lets you kill all the processes that match a given pattern.
     Matching{
         /// This is the name (or a pattern) to identify the processes to kill
-        name: String,
+        pattern: String,
         /// If set, only the processes belonging to this user will be killed
         belonging_to: Option<String>,
         /// If this flag is set it will only print the information about the
@@ -84,10 +81,10 @@ fn process(job: &PsEntry, owner: &UID, dry_run: bool) -> Result<()> {
 impl Args {
     fn execute(self) -> Result<()> {
         match self {
-            Args::Matching {name, belonging_to, dry_run} => {
+            Args::Matching {pattern, belonging_to, dry_run} => {
                 let owner= UID::get(&belonging_to)?;
 
-                for job in list_matches(&name)?.iter() {
+                for job in list_matches(&pattern)?.iter() {
                     process(job, &owner, dry_run)?;
                 }
             },

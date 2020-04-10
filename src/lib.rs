@@ -46,9 +46,9 @@ pub fn kill(job: &PsEntry) -> Result<()> {
 /// Lists all the processes (note: the bulk of the work is deferred to `ps`).
 ///
 /// # Note
-/// Using this function will trigger a call to `ps -alx` on your system.
+/// Using this function will trigger a call to `ps -e` on your system.
 pub fn list_all() -> Result<Vec<PsEntry>> {
-    let output = Command::new("ps").arg("-alx").output()?;
+    let output = Command::new("ps").arg("-e").arg("-o").arg("uid pid ppid command").output()?;
     let output = String::from_utf8(output.stdout)?;
 
     let entries= output.lines().skip(1) // skip header
@@ -83,22 +83,15 @@ pub fn list_descendants(parent: usize) -> Result<Vec<PsEntry>> {
     Ok(ret)
 }
 
-/// Lists all the processes that match the given pattern.
-/// Caution though, this really amounds to issuing a `ps -alx | grep $pattern`
-/// so it might yield more results than you'd expect.
+/// Lists all the processes for which the command matches the given pattern.
 ///
 /// # Note
 /// Using this function will trigger a call to `ps -alx` on your system.
 pub fn list_matches(pattern: &str) -> Result<Vec<PsEntry>> {
     let pattern= Regex::new(pattern)?;
 
-    let output = Command::new("ps").arg("-alx").output()?;
-    let output = String::from_utf8(output.stdout)?;
-
-    let entries= output.lines()
-        .filter(|l| pattern.is_match(l))
-        .map(|l| PsEntry::try_from(l).unwrap())
-        .collect::<Vec<PsEntry>>();
+    let mut entries= list_all()?;
+    entries.retain(|j| pattern.is_match(&j.command));
 
     Ok(entries)
 }

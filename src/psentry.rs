@@ -30,8 +30,10 @@ pub struct PsEntry {
     pub uid:  String,
     /// The process' id
     pub pid:  usize,
-    /// The parent process' id.
-    pub ppid: usize
+    /// The parent process' id
+    pub ppid: usize,
+    /// The command being run
+    pub command: String,
 }
 
 /// The kind of error which is issued when we cannot parse a line.
@@ -40,8 +42,8 @@ pub struct ParsingError {
     pub text: String
 }
 
-// LINE FORMAT = UID        PID  PPID  C STIME TTY          TIME CMD
-const LINE_FMT: &str  = r"^\s*(?P<uid>[^\s]+)\s+(?P<pid>\d+)\s+(?P<ppid>\d+)\s+.*$";
+// LINE FORMAT = UID PID PPID COMMAND
+const LINE_FMT: &str  = r"^\s*(?P<uid>[^\s]+)\s+(?P<pid>\d+)\s+(?P<ppid>\d+)\s+(?P<command>.+)$";
 lazy_static! {
     static ref PS_LINE : Regex = Regex::new(LINE_FMT).unwrap();
 }
@@ -51,9 +53,10 @@ impl TryFrom<&str> for PsEntry {
     fn try_from(line: &str) -> Result<Self, Self::Error> {
         if let Some(caps) = PS_LINE.captures(line) {
             Ok(PsEntry {
-                uid : caps["uid"].to_string(),
-                pid : caps["pid"].parse::<usize>().unwrap(),
-                ppid: caps["ppid"].parse::<usize>().unwrap()
+                uid    : caps["uid"].to_string(),
+                pid    : caps["pid"].parse::<usize>().unwrap(),
+                ppid   : caps["ppid"].parse::<usize>().unwrap(),
+                command: caps["command"].to_string(),
             })
         } else {
             Err(ParsingError{text: line.to_string()})
