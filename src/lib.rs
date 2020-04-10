@@ -48,7 +48,7 @@ pub fn kill(job: &PsEntry) -> Result<()> {
 /// # Note
 /// Using this function will trigger a call to `ps -e` on your system.
 pub fn list_all() -> Result<Vec<PsEntry>> {
-    let output = Command::new("ps").arg("-e").arg("-o").arg("uid pid ppid command").output()?;
+    let output = Command::new("ps").arg("e").arg("-o").arg("uid pid ppid command").output()?;
     let output = String::from_utf8(output.stdout)?;
 
     let entries= output.lines().skip(1) // skip header
