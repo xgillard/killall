@@ -33,6 +33,12 @@ use killall::{Result, list_matches, UID, PsEntry, list_descendants, kill};
 /// (again with the possibility of filtering on the owner of the processes).
 ///
 /// The default owner for all process is always the current user.
+///
+/// # Note:
+/// This is basically what I wish the killall utility was, and because I could
+/// not find its sources to install on a system where I needed it. So I decided
+/// to write it for myself and came along with this.
+///
 #[derive(StructOpt)]
 enum Args {
     /// This subcommand lets you kill all the processes that match a given
@@ -43,7 +49,11 @@ enum Args {
         /// This is the name (or a pattern) to identify the processes to kill
         name: String,
         /// If set, only the processes belonging to this user will be killed
-        belonging_to: Option<String>
+        belonging_to: Option<String>,
+        /// If this flag is set it will only print the information about the
+        /// processes that would otherwise have been killed
+        #[structopt(long, short)]
+        dry_run: bool,
     },
     /// This subcommand lets you kill all the processes that were spawned by
     /// the `pid` process, or any of its descendants.
@@ -52,39 +62,47 @@ enum Args {
         /// processes we wish to kill.
         pid : usize,
         /// If set, only the processes belonging to this user will be killed
-        belonging_to: Option<String>
+        belonging_to: Option<String>,
+        /// If this flag is set it will only print the information about the
+        /// processes that would otherwise have been killed
+        #[structopt(long, short)]
+        dry_run: bool,
     },
 }
 
+fn process(job: &PsEntry, owner: &UID, dry_run: bool) -> Result<()> {
+    if owner.matches(&job.uid) {
+        if dry_run {
+            println!("{:?}", job);
+        } else {
+            kill(job)?;
+        }
+    }
+    Ok(())
+}
+
 impl Args {
-    fn jobs(self) -> Result<Vec<PsEntry>> {
+    fn execute(self) -> Result<()> {
         match self {
-            Args::Matching {name, belonging_to} => {
+            Args::Matching {name, belonging_to, dry_run} => {
                 let owner= UID::get(&belonging_to)?;
-                let jobs = list_matches(&name)?.drain(..)
-                    .filter(|j| owner.matches(&j.uid))
-                    .collect::<Vec<PsEntry>>();
 
-                Ok(jobs)
+                for job in list_matches(&name)?.iter() {
+                    process(job, &owner, dry_run)?;
+                }
             },
-            Args::ChildrenOf{pid,  belonging_to} => {
+            Args::ChildrenOf{pid,  belonging_to, dry_run} => {
                 let owner = UID::get(&belonging_to)?;
-                let jobs  = list_descendants(pid)?.drain(..)
-                    .filter(|j| owner.matches(&j.uid))
-                    .collect::<Vec<PsEntry>>();
 
-                Ok(jobs)
+                for job in list_descendants(pid)?.iter() {
+                    process(job, &owner, dry_run)?;
+                }
             }
         }
+        Ok(())
     }
 }
 
 fn main() -> Result<()>{
-    let jobs = Args::from_args().jobs()?;
-
-    for job in jobs.iter() {
-        kill(job)?;
-    }
-
-    Ok(())
+    Args::from_args().execute()
 }
